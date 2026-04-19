@@ -1,171 +1,32 @@
-# beyond-pope
+# Beyond-POPE
 
-**POPE is broken — and modern VLMs are hiding behind it.**
-
-We show that POPE, the most widely used object hallucination benchmark, is saturated on 2024–2025 VLMs and contains systematic annotation errors that distort model rankings. More importantly, we reveal that while models score near-ceiling on existence hallucination, they continue to fail substantially on **attribute** and **relational** hallucination — failures that POPE cannot measure.
-
-We contribute:
-
-1. The first systematic evaluation of 6 state-of-the-art VLMs on POPE, RePOPE, and DASH-B
-2. Quantitative evidence of POPE saturation and its annotation noise impact on rankings
-3. **X-POPE** — a new benchmark extending hallucination evaluation to attribute and relation dimensions, built from COCO + Visual Genome
-
-> *"We demonstrate that existing object hallucination benchmarks are saturated and annotation-noisy, masking persistent attribute and relational hallucination failures in state-of-the-art VLMs."*
+A research project demonstrating that POPE — the most widely used VLM hallucination benchmark — is saturated, contains annotation errors, and only measures existence hallucination, masking true model failures on attribute and relation hallucination.
 
 ---
 
-## Key Results
+## Core Argument
 
-### POPE is saturated — scores tell you almost nothing
+| Problem | Evidence | Module |
+|---|---|---|
+| POPE is saturated | CV across 6 models ≤ 0.02 on adversarial split | Module 1 |
+| Annotation errors distort rankings | Spearman ρ (POPE → RePOPE) < 0.7 | Module 2 |
+| Harder benchmarks restore discriminability | CV recovers on DASH-B | Module 3 |
+| Existence hallucination is only the tip | Attribute/relation F1 drops significantly | Module 4 |
 
-| Model | POPE-Rand | POPE-Pop | POPE-Adv | CV (↓ = more saturated) |
-|-------|-----------|----------|----------|--------------------------|
-| Qwen2.5-VL-7B | — | — | — | — |
-| InternVL2.5-8B | — | — | — | — |
-| LLaVA-OV-7B | — | — | — | — |
-| Llama-3.2-11B-V | — | — | — | — |
-| PaliGemma2-3B | — | — | — | — |
-| Idefics3-8B | — | — | — | — |
-
-*Results will be filled after inference runs.*
-
-### Annotation errors change model rankings (POPE → RePOPE)
-
-| Model | POPE-Adv F1 | RePOPE-Adv F1 | Rank change |
-|-------|-------------|----------------|-------------|
-| ... | — | — | — |
-
-### Models still fail on attribute and relation hallucination (X-POPE)
-
-| Model | H_exist | H_attr | H_rel | H_total |
-|-------|---------|--------|-------|---------|
-| ... | — | — | — | — |
-
----
-
-## What is X-POPE?
-
-X-POPE is a multi-dimensional hallucination benchmark built on COCO val2014 images and Visual Genome annotations. Unlike POPE (existence only), X-POPE covers three hallucination types:
-
-| Split | Question template | Example |
-|-------|-------------------|---------|
-| Existence | Is there a {object}? | Is there a dog in the image? |
-| Attribute | Is the {object} {attribute}? | Is the car red? |
-| Relation | Is the {object_a} {relation} {object_b}? | Is the person sitting on the chair? |
-
-**Negative sample strategies (attribute split):**
-
-- Type A — Wrong attribute, same category: "Is the car blue?" (car is red)
-- Type B — Attribute from another object in the same image: "Is the car white?" (dog is white, car is red)
-
-Type B is the hardest and most diagnostic — it tests whether the model confuses attributes across objects, which is a common real-world failure mode.
-
-**Dataset statistics:**
-
-| Split | Questions | Pos/Neg | Unique images |
-|-------|-----------|---------|---------------|
-| Existence | 3,000 | 1:1 | 500 |
-| Attribute | 2,200 | 1:1 | 500 |
-| Relation | 1,800 | 1:1 | 450 |
-| **Total** | **7,000** | **1:1** | **500** |
-
-Quality control: all annotations filtered from Visual Genome with ≥2 annotator agreement, restricted to 4 attribute types (color, material, size, shape), subjective attributes removed. 10% human-verified (inter-annotator agreement reported in paper).
-
----
-
-## Unified Hallucination Score (H_total)
-
-We propose a single comparable metric across all three dimensions:
-
-```
-H_total = (H_exist + H_attr + H_rel) / 3
-```
-
-where each H_x = 1 − accuracy on that split (higher = more hallucination).
-
-We also report frequency-weighted and ablation variants to show ranking stability across different weight choices. See `src/eval/h_total.py` for full implementation.
+**Conclusion**: POPE is neither accurate (annotation noise), sensitive (saturated), nor complete (dimension coverage). Beyond-POPE proposes a more reliable evaluation framework: RePOPE + DASH-B + X-POPE + H_total.
 
 ---
 
 ## Models Evaluated
 
-| Model | Size | HuggingFace ID |
-|-------|------|----------------|
-| Qwen2.5-VL | 7B | `Qwen/Qwen2-VL-7B-Instruct` |
-| InternVL2.5 | 8B | `OpenGVLab/InternVL2_5-8B` |
-| LLaVA-OneVision | 7B | `lmms-lab/llava-onevision-qwen2-7b-ov` |
-| Llama-3.2-Vision | 11B | `meta-llama/Llama-3.2-11B-Vision-Instruct` |
-| PaliGemma2 | 3B | `google/paligemma2-3b-pt-448` |
-| Idefics3 | 8B | `HuggingFaceM4/Idefics3-8B-Llama3` |
-
-All models evaluated with **identical settings**: same prompt template, greedy decoding (`do_sample=False`), `max_new_tokens=5`.
-
----
-
-## Reproduce
-
-### 1. Setup
-
-```bash
-git clone https://github.com/YOUR_USERNAME/beyond-pope
-cd beyond-pope
-pip install -r requirements.txt
-```
-
-### 2. Download data
-
-```bash
-# COCO val2014 images (~13GB)
-wget http://images.cocodataset.org/zips/val2014.zip
-unzip val2014.zip -d data/raw/coco/
-
-# POPE benchmark files
-git clone https://github.com/RUCAIBox/POPE data/raw/benchmarks/pope_repo
-cp data/raw/benchmarks/pope_repo/output/coco/coco_pope_*.json data/raw/benchmarks/pope/
-
-# RePOPE
-git clone https://github.com/YanNeu/RePOPE data/raw/benchmarks/repope_repo
-cp data/raw/benchmarks/repope_repo/annotations/*.json data/raw/benchmarks/repope/
-
-# Visual Genome (for X-POPE construction)
-wget https://cs.stanford.edu/people/rak248/VG_100K_2/images.zip
-wget https://cs.stanford.edu/people/rak248/VG_100K_2/images2.zip
-wget http://visualgenome.org/static/data/dataset/attributes.json.zip
-wget http://visualgenome.org/static/data/dataset/relationships.json.zip
-```
-
-### 3. Build X-POPE
-
-```bash
-python -m src.dataset.build_xpope \
-    --coco-dir data/raw/coco \
-    --vg-dir data/raw/visual_genome \
-    --output-dir data/processed
-```
-
-### 4. Run inference
-
-```bash
-# Single model, single benchmark (test first)
-python -m src.models.run_inference \
-    --model qwen2vl_7b \
-    --benchmark pope_adversarial \
-    --image-dir data/raw/coco/val2014
-
-# Full sweep (all 6 models × all 7 benchmarks)
-bash experiments/run_all.sh
-```
-
-Estimated time on a single A100 (80GB): ~12 hours for the full sweep.
-
-### 5. Compute metrics and generate figures
-
-```bash
-python -m src.eval.compute_all
-python -m src.viz.generate_all
-```
-
-Figures are written to `results/figures/`. Tables for the paper are in `results/tables/`.
+| Model | Parameters | Source |
+|---|---|---|
+| Qwen2.5-VL | 7B | Qwen/Qwen2-VL-7B-Instruct |
+| InternVL2.5 | 8B | OpenGVLab/InternVL2_5-8B |
+| LLaVA-OneVision | 7B | lmms-lab/llava-onevision-qwen2-7b-ov |
+| Llama-3.2-Vision | 11B | meta-llama/Llama-3.2-11B-Vision-Instruct |
+| PaliGemma2 | 3B | google/paligemma2-3b-pt-448 |
+| Idefics3 | 8B | HuggingFaceM4/Idefics3-8B-Llama3 |
 
 ---
 
@@ -173,66 +34,232 @@ Figures are written to `results/figures/`. Tables for the paper are in `results/
 
 ```
 beyond-pope/
-├── data/
-│   ├── raw/            # COCO, Visual Genome, POPE, RePOPE, DASH-B
-│   └── processed/      # X-POPE splits (existence / attribute / relation)
 ├── src/
-│   ├── dataset/        # X-POPE construction pipeline
-│   ├── models/         # Unified inference interface for all 6 VLMs
-│   ├── eval/           # Metrics: Acc, F1, CV, Yes-rate, H_total
-│   ├── analysis/       # Saturation, ranking shifts, bias analysis
-│   └── viz/            # Figure generation (paper-ready PDFs)
-├── experiments/        # Shell scripts for each experiment module
+│   ├── models/              Unified inference wrappers for all 6 models
+│   │   ├── base.py          Abstract base: prompt templates, answer parser, batching
+│   │   ├── qwen2vl.py
+│   │   ├── internvl2.py
+│   │   ├── llava_ov.py
+│   │   ├── llama32v.py
+│   │   ├── paligemma2.py
+│   │   ├── idefics3.py
+│   │   ├── __init__.py      MODEL_REGISTRY + get_model()
+│   │   └── run_inference.py CLI entry point
+│   │
+│   ├── dataset/             Dataset construction
+│   │   ├── parse_vg.py      Parse Visual Genome annotations
+│   │   ├── build_existence.py
+│   │   ├── build_attribute.py
+│   │   ├── build_relation.py
+│   │   ├── build_xpope.py   Build all X-POPE splits in one call
+│   │   └── __init__.py
+│   │
+│   ├── eval/                Evaluation metrics
+│   │   ├── metrics.py       accuracy / F1 / yes_bias / CV / per_category
+│   │   ├── h_total.py       H_total weighted harmonic mean + model ranking
+│   │   ├── evaluator.py     Evaluator + batch_evaluate + saturation_report
+│   │   └── __init__.py
+│   │
+│   ├── analysis/            Statistical analysis
+│   │   ├── ranking_shift.py Spearman rho across POPE → RePOPE → DASH-B
+│   │   ├── bias_analysis.py Yes-bias distribution per model and benchmark
+│   │   └── saturation_diag.py CV saturation diagnostics
+│   │
+│   ├── viz/                 Visualizations
+│   │   ├── plot_radar.py    3-dimension radar chart (existence/attribute/relation)
+│   │   ├── plot_ranking.py  Bump chart of ranking shifts
+│   │   └── plot_bias.py     Diverging bar chart of yes-bias
+│   │
+│   └── experiments/         Experiment runner scripts
+│       ├── run_module1.sh   POPE saturation + yes-bias
+│       ├── run_module2.sh   RePOPE ranking shift
+│       ├── run_module3.sh   DASH-B discriminability recovery
+│       └── run_module4.sh   X-POPE three-dimension evaluation
+│
+├── data/
+│   ├── raw/
+│   │   ├── coco/val2014/    COCO val2014 images (~6GB)
+│   │   └── benchmarks/
+│   │       ├── pope/        pope_random/popular/adversarial.jsonl
+│   │       ├── repope/      repope_adversarial.jsonl
+│   │       └── dashb/       dashb_adversarial.jsonl
+│   └── processed/
+│       ├── xpope_existence.jsonl
+│       ├── xpope_attribute.jsonl
+│       └── xpope_relation.jsonl
+│
 ├── results/
-│   ├── predictions/    # Raw model outputs (JSONL)
-│   ├── metrics/        # Computed metrics (JSON)
-│   ├── figures/        # Plots (PDF + PNG)
-│   └── tables/         # LaTeX + CSV tables
-└── README.md
+│   └── predictions/         Per-model per-benchmark JSONL prediction files
+│
+├── reports/                 JSON analysis outputs
+├── figures/                 Generated PNG charts
+└── venv/                    Local Python environment
 ```
 
 ---
 
-## Experimental Modules
+## Setup
 
-**Module 1 — POPE saturation diagnosis**
-Run all 6 models on POPE (random / popular / adversarial). Compute Coefficient of Variation (CV) across models per split to quantify saturation. Analyze Yes-bias distribution.
-→ `experiments/exp1_saturation.sh`
+### 1. Clone
 
-**Module 2 — RePOPE annotation impact**
-Re-run on RePOPE (corrected labels). Measure rank changes vs POPE. Show that annotation errors in POPE's positive set (9.3% error rate) disproportionately affect certain models.
-→ `experiments/exp2_repope.sh`
+```bash
+git clone git@github.com:FlyGCB/beyond-pope.git
+cd beyond-pope
+```
 
-**Module 3 — DASH-B discriminability**
-Run on DASH-B, a harder benchmark designed to resist saturation. Show that CV recovers — models are still differentiable when the benchmark is hard enough.
-→ `experiments/exp3_dashb.sh`
+### 2. Environment
 
-**Module 4 — X-POPE multi-dimensional evaluation**
-Full evaluation on X-POPE (existence + attribute + relation). Compute H_total. Show that models scoring near-ceiling on existence still fail substantially on attribute and relation hallucination.
-→ `experiments/exp4_xpope.sh`
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
 
----
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+pip install transformers accelerate einops timm sentencepiece
+pip install scipy numpy matplotlib Pillow tqdm
+```
 
-## Citation
+### 3. Data
 
-If you use X-POPE or find this work useful, please cite:
+**COCO val2014 images** (~6GB):
+```bash
+mkdir -p data/raw/coco
+wget -P data/raw/coco http://images.cocodataset.org/zips/val2014.zip
+wget -P data/raw/coco http://images.cocodataset.org/annotations/annotations_trainval2014.zip
+cd data/raw/coco && unzip val2014.zip && unzip annotations_trainval2014.zip
+```
 
-```bibtex
-@misc{beyond-pope-2025,
-  title   = {Beyond POPE: Benchmarking Object Hallucination in 2024–2025 VLMs
-             under Saturated and Harder Evaluation Settings},
-  author  = {},
-  year    = {2025},
-  url     = {https://github.com/YOUR_USERNAME/beyond-pope}
-}
+**POPE benchmark files**:
+```bash
+mkdir -p data/raw/benchmarks/pope
+# Download + convert from POPE official repo
+python3 scripts/convert_pope.py
+```
+
+**Visual Genome** (for X-POPE, Module 4):
+```bash
+mkdir -p data/raw/vg
+wget -P data/raw/vg https://homes.cs.washington.edu/~ranjay/visualgenome/data/dataset/objects.json.zip
+wget -P data/raw/vg https://homes.cs.washington.edu/~ranjay/visualgenome/data/dataset/attributes.json.zip
+wget -P data/raw/vg https://homes.cs.washington.edu/~ranjay/visualgenome/data/dataset/relationships.json.zip
+cd data/raw/vg && unzip "*.zip"
+
+# Build X-POPE splits
+python -m src.dataset.build_xpope     --vg-dir data/raw/vg     --output-dir data/processed
 ```
 
 ---
 
-## Acknowledgements
+## Running Experiments
 
-- [POPE](https://github.com/RUCAIBox/POPE) — Li et al., EMNLP 2023
-- [RePOPE](https://github.com/YanNeu/RePOPE) — Neuhaus & Hein, 2025
-- [DASH-B](https://github.com/YanNeu/DASH-B) — Neuhaus & Hein, 2025
-- [Visual Genome](https://visualgenome.org/) — Krishna et al., IJCV 2017
-- [lmms-eval](https://github.com/EvolvingLMMs-Lab/lmms-eval) — for benchmark formatting reference
+Each module is self-contained and runs sequentially.
+
+### Module 1 — POPE Saturation + Yes-bias
+```bash
+bash src/experiments/run_module1.sh
+# Outputs: reports/module1_saturation.json, figures/module1_bias_bar.png
+```
+
+### Module 2 — RePOPE Ranking Shift
+```bash
+bash src/experiments/run_module2.sh
+# Outputs: reports/module2_ranking.json, figures/module2_bump.png
+```
+
+### Module 3 — DASH-B Discriminability Recovery
+```bash
+bash src/experiments/run_module3.sh
+# Outputs: reports/module3_ranking.json, reports/module3_saturation.json, figures/module3_bump.png
+```
+
+### Module 4 — X-POPE Three-Dimension Evaluation
+```bash
+bash src/experiments/run_module4.sh
+# Outputs: reports/module4_htotal.json, figures/module4_radar.png, figures/module4_bias_bar.png
+```
+
+### Single model, single benchmark
+```bash
+python -m src.models.run_inference     --model qwen2vl_7b     --benchmark pope_adversarial     --image-dir data/raw/coco/val2014
+
+# With 4-bit quantization (saves ~8GB VRAM)
+python -m src.models.run_inference     --model qwen2vl_7b     --benchmark pope_adversarial     --image-dir data/raw/coco/val2014     --load-in-4bit
+```
+
+### All models, all benchmarks
+```bash
+python -m src.models.run_inference --model all --benchmark all     --image-dir data/raw/coco/val2014
+```
+
+---
+
+## Evaluation
+
+```python
+from src.eval.evaluator import Evaluator, batch_evaluate
+from src.eval.h_total import rank_models_by_h_total
+
+# Single file
+ev = Evaluator("results/predictions/qwen2vl_7b_pope_adversarial.jsonl")
+print(ev.summary())
+
+# All results in a directory
+reports = batch_evaluate("results/predictions/")
+```
+
+---
+
+## Analysis
+
+```bash
+# Ranking shift (Spearman rho)
+python -m src.analysis.ranking_shift results/predictions/     --benchmarks pope_adversarial repope_adversarial dashb_adversarial
+
+# Yes-bias distribution
+python -m src.analysis.bias_analysis results/predictions/ --json > reports/bias.json
+
+# CV saturation diagnostics
+python -m src.analysis.saturation_diag results/predictions/     --benchmarks pope_adversarial dashb_adversarial
+```
+
+---
+
+## Visualization
+
+```bash
+# Radar chart (X-POPE three dimensions)
+python -m src.viz.plot_radar reports/module4_radar_input.json     --output figures/radar_xpope.png
+
+# Bump chart (ranking shift)
+python -m src.viz.plot_ranking reports/module3_ranking.json     --output figures/bump_ranking.png
+
+# Yes-bias bar chart
+python -m src.viz.plot_bias reports/module1_bias.json     --output figures/bias_bar.png
+```
+
+---
+
+## Key Design Decisions
+
+**Single prompt template across all models**: prevents prompt-engineering confounds — any performance difference reflects model capability, not prompt sensitivity.
+
+**Conservative answer parser**: returns `unknown` rather than guessing when a model response is ambiguous. Unknown responses are excluded from all metrics and logged.
+
+**H_total**: weighted harmonic mean of existence / attribute / relation F1. Missing dimensions are dropped and weights re-normalized, so models are never penalized for untested dimensions.
+
+**CV as saturation metric**: coefficient of variation (std / mean) across model F1 scores. Low CV indicates benchmark cannot distinguish models. Threshold: CV ≤ 0.02 → saturated.
+
+---
+
+## Requirements
+
+- Python 3.11+
+- CUDA 12.1+ (tested on A100 80GB)
+- ~80GB disk space for images + model weights
+- ~40GB VRAM for full-precision inference (use `--load-in-4bit` for lower-end GPUs)
+
+---
+
+## License
+
+MIT
