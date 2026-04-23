@@ -263,3 +263,4 @@ python -m src.viz.plot_bias reports/module1_bias.json     --output figures/bias_
 ## License
 
 MIT
+# DeepSeek-VL2 Panel
