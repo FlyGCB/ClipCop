@@ -263,6 +263,3 @@ python -m src.viz.plot_bias reports/module1_bias.json     --output figures/bias_
 ## License
 
 MIT
-
-#   D e e p S e e k - V L 2   P a n e l  
- 
